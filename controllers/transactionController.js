@@ -7,8 +7,6 @@ exports.getTransactions = async (req, res) => {
     const { month, year } = req.query;
     let where = {};
 
-    console.log("Request query:", { month, year }); // Debugging
-
     if (month && year) {
       // Validasi month dan year
       const monthNum = parseInt(month);
@@ -29,14 +27,10 @@ exports.getTransactions = async (req, res) => {
       const lastDay = new Date(yearNum, monthNum, 0).getDate();
       const endDate = `${yearNum}-${monthNum.toString().padStart(2, "0")}-${lastDay}`;
 
-      console.log("Date range:", { startDate, endDate });
-
       where.date = {
         [Op.between]: [startDate, endDate],
       };
     }
-
-    console.log("Where clause:", where);
 
     const transactions = await Transaction.findAll({
       where,
@@ -46,7 +40,6 @@ exports.getTransactions = async (req, res) => {
       ],
     });
 
-    console.log(`Found ${transactions.length} transactions`);
     res.json(transactions);
   } catch (error) {
     console.error("❌ Error in getTransactions:", error);
@@ -64,20 +57,21 @@ exports.getTransactions = async (req, res) => {
 };
 
 // Buat transaksi baru (admin only)
+// Buat transaksi baru
 exports.createTransaction = async (req, res) => {
   try {
-    const { date, description, amount, type } = req.body;
+    const { date, jenis_iuran, nama_warga, amount, type, keterangan } =
+      req.body;
 
-    console.log("Creating transaction with data:", {
-      date,
-      description,
-      amount,
-      type,
-    });
+    // Log untuk debugging
+    console.log("📝 Data received:", req.body);
 
-    // Validasi input
-    if (!date || !description || !amount || !type) {
-      return res.status(400).json({ message: "Semua field harus diisi" });
+    // Validasi input - pastikan nama field SAMA dengan yang dikirim frontend
+    if (!date || !jenis_iuran || !nama_warga || !amount || !type) {
+      return res.status(400).json({
+        message: "Semua field wajib diisi",
+        received: req.body, // Kirim balik data yang diterima untuk debugging
+      });
     }
 
     // Validasi amount harus number
@@ -86,36 +80,29 @@ exports.createTransaction = async (req, res) => {
       return res.status(400).json({ message: "Jumlah harus angka positif" });
     }
 
-    // Validasi type
-    if (!["income", "expense"].includes(type)) {
-      return res
-        .status(400)
-        .json({ message: "Tipe harus income atau expense" });
-    }
-
     const transaction = await Transaction.create({
       date,
-      description,
+      jenis_iuran,
+      nama_warga,
       amount: amountNum,
       type,
+      keterangan: keterangan || "",
+      created_by: req.user.id,
     });
 
-    console.log("Transaction created:", transaction.toJSON());
+    console.log("✅ Transaction created:", transaction.id);
     res.status(201).json(transaction);
   } catch (error) {
     console.error("❌ Error in createTransaction:", error);
-    res.status(500).json({
-      message: "Gagal membuat transaksi",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Update transaksi (admin only)
-exports.updateTransaction = async (req, res) => {
+// Ambil transaksi by ID
+exports.getTransactionById = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Updating transaction:", id);
+    console.log(`🔍 Fetching transaction with ID: ${id}`);
 
     const transaction = await Transaction.findByPk(id);
 
@@ -123,8 +110,25 @@ exports.updateTransaction = async (req, res) => {
       return res.status(404).json({ message: "Transaksi tidak ditemukan" });
     }
 
+    console.log(`✅ Transaction found:`, transaction.id);
+    res.json(transaction);
+  } catch (error) {
+    console.error("❌ Error in getTransactionById:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update transaksi (admin only)
+exports.updateTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transaction = await Transaction.findByPk(id);
+
+    if (!transaction) {
+      return res.status(404).json({ message: "Transaksi tidak ditemukan" });
+    }
+
     await transaction.update(req.body);
-    console.log("Transaction updated");
     res.json(transaction);
   } catch (error) {
     console.error("❌ Error in updateTransaction:", error);
@@ -136,8 +140,6 @@ exports.updateTransaction = async (req, res) => {
 exports.deleteTransaction = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Deleting transaction:", id);
-
     const transaction = await Transaction.findByPk(id);
 
     if (!transaction) {
@@ -145,7 +147,6 @@ exports.deleteTransaction = async (req, res) => {
     }
 
     await transaction.destroy();
-    console.log("Transaction deleted");
     res.json({ message: "Transaksi berhasil dihapus" });
   } catch (error) {
     console.error("❌ Error in deleteTransaction:", error);
@@ -157,9 +158,6 @@ exports.getAvailableYears = async (req, res) => {
   try {
     const sequelize = require("sequelize"); // Import di dalam fungsi atau di atas file
     const { Transaction } = require("../models");
-
-    console.log("Fetching available years...");
-
     const years = await Transaction.findAll({
       attributes: [[sequelize.fn("YEAR", sequelize.col("date")), "year"]],
       group: ["year"],
@@ -167,13 +165,251 @@ exports.getAvailableYears = async (req, res) => {
       raw: true,
     });
 
-    console.log("Available years:", years);
-
     // Extract year values dan kirim sebagai array
     const yearList = years.map((y) => y.year);
     res.json(yearList);
   } catch (error) {
     console.error("Error fetching available years:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get recent transactions
+exports.getRecentTransactions = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+
+    console.log(`📋 Mengambil ${limit} transaksi terbaru...`);
+
+    const transactions = await Transaction.findAll({
+      order: [
+        ["date", "DESC"],
+        ["createdAt", "DESC"],
+      ],
+      limit: limit,
+    });
+
+    console.log(`✅ Ditemukan ${transactions.length} transaksi terbaru`);
+    res.json(transactions);
+  } catch (error) {
+    console.error("❌ Error in getRecentTransactions:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get warga list (untuk filter dropdown)
+exports.getWargaList = async (req, res) => {
+  try {
+    console.log("📋 Mengambil daftar warga...");
+
+    const warga = await Transaction.findAll({
+      attributes: [
+        [
+          require("sequelize").fn(
+            "DISTINCT",
+            require("sequelize").col("nama_warga"),
+          ),
+          "nama_warga",
+        ],
+      ],
+      where: {
+        nama_warga: {
+          [Op.ne]: null, // Abaikan yang null
+        },
+      },
+      raw: true,
+    });
+
+    const wargaList = warga.map((w) => w.nama_warga).filter((w) => w); // Filter falsy values
+    console.log(`✅ Ditemukan ${wargaList.length} warga`);
+    res.json(wargaList);
+  } catch (error) {
+    console.error("❌ Error in getWargaList:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get transactions by type dengan filter
+exports.getTransactionsByType = async (req, res) => {
+  try {
+    const { type, bulan, tahun, warga, jenis } = req.query;
+    let where = {};
+
+    // Filter by type jika ada
+    if (type) {
+      where.type = type;
+    }
+
+    // Filter by bulan dan tahun
+    if (bulan && tahun) {
+      const bulanStr = bulan.toString().padStart(2, "0");
+      const startDate = `${tahun}-${bulanStr}-01`;
+      const lastDay = new Date(tahun, parseInt(bulan), 0).getDate();
+      const endDate = `${tahun}-${bulanStr}-${lastDay}`;
+
+      where.date = {
+        [Op.between]: [startDate, endDate],
+      };
+    }
+
+    // Filter by nama warga
+    if (warga) {
+      where.nama_warga = warga;
+    }
+
+    // Filter by jenis iuran
+    if (jenis) {
+      where.jenis_iuran = jenis;
+    }
+
+    console.log("📋 Filter transactions:", {
+      type,
+      bulan,
+      tahun,
+      warga,
+      jenis,
+    });
+    console.log("📋 Where clause:", where);
+
+    const transactions = await Transaction.findAll({
+      where,
+      order: [["date", "DESC"]],
+    });
+
+    console.log(`✅ Ditemukan ${transactions.length} transaksi`);
+    res.json(transactions);
+  } catch (error) {
+    console.error("❌ Error in getTransactionsByType:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get pemasukan dengan filter (khusus type='income')
+exports.getPemasukan = async (req, res) => {
+  try {
+    const { bulan, tahun, warga, jenis } = req.query;
+    let where = { type: "income" };
+
+    // Filter by bulan dan tahun
+    if (bulan && tahun) {
+      const bulanStr = bulan.toString().padStart(2, "0");
+      const startDate = `${tahun}-${bulanStr}-01`;
+      const lastDay = new Date(tahun, parseInt(bulan), 0).getDate();
+      const endDate = `${tahun}-${bulanStr}-${lastDay}`;
+
+      where.date = {
+        [Op.between]: [startDate, endDate],
+      };
+    }
+
+    // Filter by nama warga
+    if (warga) {
+      where.nama_warga = warga;
+    }
+
+    // Filter by jenis iuran
+    if (jenis) {
+      where.jenis_iuran = jenis;
+    }
+
+    const transactions = await Transaction.findAll({
+      where,
+      order: [["date", "DESC"]],
+    });
+
+    res.json(transactions);
+  } catch (error) {
+    console.error("❌ Error in getPemasukan:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get total pemasukan (untuk ringkasan)
+exports.getTotalPemasukan = async (req, res) => {
+  try {
+    const { bulan, tahun } = req.query;
+    let where = { type: "income" };
+
+    if (bulan && tahun) {
+      const bulanStr = bulan.toString().padStart(2, "0");
+      const startDate = `${tahun}-${bulanStr}-01`;
+      const lastDay = new Date(tahun, parseInt(bulan), 0).getDate();
+      const endDate = `${tahun}-${bulanStr}-${lastDay}`;
+
+      where.date = {
+        [Op.between]: [startDate, endDate],
+      };
+    }
+
+    const total = (await Transaction.sum("amount", { where })) || 0;
+    res.json({ total });
+  } catch (error) {
+    console.error("❌ Error in getTotalPemasukan:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get pemasukan dengan filter (khusus type='income')
+exports.getPengeluaran = async (req, res) => {
+  try {
+    const { bulan, tahun, warga, jenis } = req.query;
+    let where = { type: "expense" };
+
+    // Filter by bulan dan tahun
+    if (bulan && tahun) {
+      const bulanStr = bulan.toString().padStart(2, "0");
+      const startDate = `${tahun}-${bulanStr}-01`;
+      const lastDay = new Date(tahun, parseInt(bulan), 0).getDate();
+      const endDate = `${tahun}-${bulanStr}-${lastDay}`;
+
+      where.date = {
+        [Op.between]: [startDate, endDate],
+      };
+    }
+
+    // Filter by nama warga
+    if (warga) {
+      where.nama_warga = warga;
+    }
+
+    // Filter by jenis iuran
+    if (jenis) {
+      where.jenis_iuran = jenis;
+    }
+
+    const transactions = await Transaction.findAll({
+      where,
+      order: [["date", "DESC"]],
+    });
+
+    res.json(transactions);
+  } catch (error) {
+    console.error("❌ Error in getPemasukan:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get total pengeluaran (untuk ringkasan)
+exports.getTotalPengeluaran = async (req, res) => {
+  try {
+    const { bulan, tahun } = req.query;
+    let where = { type: "expense" };
+
+    if (bulan && tahun) {
+      const bulanStr = bulan.toString().padStart(2, "0");
+      const startDate = `${tahun}-${bulanStr}-01`;
+      const lastDay = new Date(tahun, parseInt(bulan), 0).getDate();
+      const endDate = `${tahun}-${bulanStr}-${lastDay}`;
+
+      where.date = {
+        [Op.between]: [startDate, endDate],
+      };
+    }
+
+    const total = (await Transaction.sum("amount", { where })) || 0;
+    res.json({ total });
+  } catch (error) {
+    console.error("❌ Error in getTotalPengeluaran:", error);
     res.status(500).json({ message: error.message });
   }
 };
