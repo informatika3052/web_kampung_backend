@@ -3,7 +3,7 @@ const User = require("./models/User");
 
 async function seed() {
   try {
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ alter: true });
 
     await User.create({
       name: "Administrator",

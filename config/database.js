@@ -8,7 +8,8 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     dialect: "mysql",
-    logging: console.log, // Aktifkan logging untuk debug
+    logging: false,
+    // logging: console.log, // Aktifkan logging untuk debug
     define: {
       timestamps: true,
       underscored: true,
