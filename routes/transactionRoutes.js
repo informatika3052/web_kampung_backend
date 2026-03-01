@@ -15,33 +15,28 @@ const {
   getPengeluaran,
   getTotalPengeluaran,
 } = require("../controllers/transactionController");
+
 const router = express.Router();
 
 // Protect semua routes
 router.use(protect);
 
-// Route untuk mendapatkan tahun-tahun yang tersedia
+// ============= ROUTES UNTUK TRANSACTIONS =============
+// Route untuk mendapatkan tahun-tahun yang tersedia (transactions)
 router.get("/years", getAvailableYears);
-
 // Route untuk mendapatkan daftar warga
 router.get("/warga-list", getWargaList);
-
 // Route untuk transaksi terbaru
 router.get("/recent", getRecentTransactions);
-
 // Route untuk transaksi by type
 router.get("/by-type", getTransactionsByType);
-
 // Route khusus untuk pemasukan
 router.get("/pemasukan", getPemasukan);
-
 router.get("/pemasukan/total", getTotalPemasukan);
-
 // Route khusus untuk pengeluaran
 router.get("/pengeluaran", getPengeluaran);
-
 router.get("/pengeluaran/total", getTotalPengeluaran);
-
+// CRUD dasar transactions
 router.route("/").get(getTransactions).post(adminOnly, createTransaction);
 
 router

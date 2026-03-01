@@ -1,25 +1,20 @@
 const sequelize = require("../config/database");
 const User = require("./User");
 const Transaction = require("./Transaction");
-const Announcement = require("./Announcement");
-const Activity = require("./Activity");
+const Announcements = require("./Announcements");
 
 // Definisikan relasi
 User.hasMany(Transaction, { foreignKey: "created_by" });
 Transaction.belongsTo(User, { foreignKey: "created_by", as: "creator" });
 
-User.hasMany(Announcement, { foreignKey: "created_by" });
-Announcement.belongsTo(User, { foreignKey: "created_by", as: "creator" });
-
-User.hasMany(Activity, { foreignKey: "created_by" });
-Activity.belongsTo(User, { foreignKey: "created_by", as: "creator" });
+User.hasMany(Announcements, { foreignKey: "created_by" });
+Announcements.belongsTo(User, { foreignKey: "created_by", as: "creator" });
 
 const db = {
   sequelize,
   User,
   Transaction,
-  Announcement,
-  Activity,
+  Announcements,
 };
 
 // console.log("✅ Models loaded:", Object.keys(db));
