@@ -3,12 +3,12 @@ const { Sequelize } = require("sequelize");
 
 // Ambil environment variable (pastikan sudah di-set di Railway)
 const sequelize = new Sequelize(
-  process.env.MYSQLDATABASE || "railway",
-  process.env.MYSQLUSER || "root",
-  process.env.MYSQLPASSWORD || "",
+  process.env.MYSQLDATABASE,
+  process.env.MYSQLUSER,
+  process.env.MYSQLPASSWORD,
   {
-    host: process.env.MYSQLHOST || "localhost",
-    port: process.env.MYSQLPORT || 3306,
+    host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT,
     dialect: "mysql",
     logging: false, // matikan log query, atau ganti dengan console.log untuk debug
     pool: {
