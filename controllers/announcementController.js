@@ -1,5 +1,7 @@
 const { Announcements, User } = require("../models");
 const { Op } = require("sequelize");
+const fs = require("fs");
+const path = require("path");
 
 // Get all announcements dengan filter
 exports.getAnnouncements = async (req, res) => {
@@ -62,8 +64,6 @@ exports.getAnnouncements = async (req, res) => {
 exports.getAnnouncementById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Ganti Announcement -> Announcements
     const announcement = await Announcements.findByPk(id, {
       include: [
         {
@@ -133,30 +133,102 @@ exports.createAnnouncement = async (req, res) => {
 };
 
 // Update announcement
+// Update announcement
 exports.updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, date, location, attachment, category } =
+    const { title, description, date, location, category, existingAttachment } =
       req.body;
 
-    // Ganti Announcement -> Announcements
+    console.log("📥 Update data received:", {
+      title,
+      description,
+      date,
+      location,
+      category,
+    });
+    console.log("📥 Existing attachment:", existingAttachment);
+    console.log("📥 New file:", req.file);
+
+    // Cari announcement berdasarkan ID
     const announcement = await Announcements.findByPk(id);
 
     if (!announcement) {
       return res.status(404).json({ message: "Pengumuman tidak ditemukan" });
     }
 
+    // Variabel untuk menyimpan path attachment baru
+    let newAttachment = announcement.attachment;
+
+    // ===== HANDLE UPLOAD FILE =====
+    if (req.file) {
+      // SKENARIO 1: Ada file baru diupload
+      console.log("📸 File baru diupload:", req.file.filename);
+
+      // Hapus file lama jika ada (dari folder uploads)
+      if (announcement.attachment) {
+        const oldFilePath = path.join(
+          __dirname,
+          "../",
+          announcement.attachment,
+        );
+        console.log("🗑️ Menghapus file lama:", oldFilePath);
+
+        fs.unlink(oldFilePath, (err) => {
+          if (err) {
+            console.error("❌ Gagal menghapus file lama:", err);
+          } else {
+            console.log("✅ File lama berhasil dihapus");
+          }
+        });
+      }
+
+      // Set attachment baru
+      newAttachment = `/uploads/announcements/${req.file.filename}`;
+    } else if (existingAttachment === "") {
+      // SKENARIO 2: existingAttachment dikirim kosong (user menghapus gambar)
+      console.log("🗑️ User menghapus gambar");
+
+      // Hapus file lama jika ada
+      if (announcement.attachment) {
+        const oldFilePath = path.join(
+          __dirname,
+          "../",
+          announcement.attachment,
+        );
+        console.log("🗑️ Menghapus file lama:", oldFilePath);
+
+        fs.unlink(oldFilePath, (err) => {
+          if (err) {
+            console.error("❌ Gagal menghapus file lama:", err);
+          } else {
+            console.log("✅ File lama berhasil dihapus");
+          }
+        });
+      }
+
+      // Set attachment menjadi null (tidak ada gambar)
+      newAttachment = null;
+    } else if (existingAttachment) {
+      // SKENARIO 3: existingAttachment ada (gambar tetap sama)
+      console.log("🖼️ Menggunakan gambar yang sudah ada");
+      newAttachment = existingAttachment;
+    }
+
+    // Update data announcement
     await announcement.update({
       title: title || announcement.title,
       description:
         description !== undefined ? description : announcement.description,
       date: date || announcement.date,
       location: location !== undefined ? location : announcement.location,
-      attachment:
-        attachment !== undefined ? attachment : announcement.attachment,
       category: category || announcement.category,
+      attachment: newAttachment, // Gunakan attachment yang sudah diproses
     });
 
+    console.log("✅ Announcement updated:", announcement.id);
+
+    // Ambil data updated dengan relasi
     const updatedAnnouncement = await Announcements.findByPk(id, {
       include: [
         {
@@ -167,10 +239,18 @@ exports.updateAnnouncement = async (req, res) => {
       ],
     });
 
-    res.json(updatedAnnouncement);
+    res.json({
+      message: "Pengumuman berhasil diupdate",
+      data: updatedAnnouncement,
+    });
   } catch (error) {
     console.error("❌ Error in updateAnnouncement:", error);
-    res.status(500).json({ message: error.message });
+    console.error("❌ Error name:", error.name);
+    console.error("❌ Error message:", error.message);
+    res.status(500).json({
+      message: "Gagal mengupdate pengumuman",
+      error: error.message,
+    });
   }
 };
 
@@ -253,12 +333,14 @@ exports.getUpcomingEvents = async (req, res) => {
   }
 };
 
-// Get available years
+// Get available years untuk filter announcements
 exports.getAnnouncementYears = async (req, res) => {
   try {
     const sequelize = require("sequelize");
+    const { Announcements } = require("../models"); // PASTIKAN NAMA MODELNYA BENAR
 
-    // Ganti Announcement -> Announcements
+    console.log("🔍 Model Announcements:", Announcements ? "ADA" : "TIDAK ADA");
+
     const years = await Announcements.findAll({
       attributes: [[sequelize.fn("YEAR", sequelize.col("date")), "year"]],
       group: ["year"],
@@ -266,10 +348,24 @@ exports.getAnnouncementYears = async (req, res) => {
       raw: true,
     });
 
-    const yearList = years.map((y) => y.year).filter((y) => y);
+    console.log("📊 Years from database:", years);
+
+    // Extract year values dan kirim sebagai array
+    const yearList = years.map((y) => y.year).filter((y) => y != null);
+
+    // Jika tidak ada data, kirim tahun sekarang
+    if (yearList.length === 0) {
+      const currentYear = new Date().getFullYear();
+      console.log("⚠️ No years found, sending current year:", currentYear);
+      return res.json([currentYear]);
+    }
+
+    console.log("✅ Year list sent:", yearList);
     res.json(yearList);
   } catch (error) {
-    console.error("Error fetching available years:", error);
+    console.error("❌ Error fetching available years:", error);
+    console.error("❌ Error name:", error.name);
+    console.error("❌ Error message:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
