@@ -7,8 +7,24 @@ const db = require("./models");
 dotenv.config();
 
 const app = express();
+// ✅ KONFIGURASI CORS YANG LEBIH LENGKAP
+const corsOptions = {
+  origin: ["https://web-kampung.vercel.app", "http://localhost:3000"], // domain frontend
+  credentials: true, // izinkan cookie/auth headers
+  optionsSuccessStatus: 200, // untuk browser legacy
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
+};
 
-app.use(cors());
+app.use(cors(corsOptions));
+
+// ✅ TANGANI OPTIONS REQUEST SECARA EKSPLISIT
+app.options("*", cors(corsOptions)); // preflight untuk semua route
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
