@@ -75,20 +75,29 @@ app.use((req, res) => {
   res.status(404).json({ message: "Route tidak ditemukan" });
 });
 
-// ========== INI BAGIAN PENTING YANG HARUS ADA ==========
 const PORT = process.env.PORT || 5000;
 
-// Jalankan server dan koneksi database
 async function startServer() {
   try {
-    // Jalankan server
+    // cek koneksi database
+    await sequelize.authenticate();
+    console.log("✅ Database connected");
+
+    const [tables] = await sequelize.query("SHOW TABLES");
+    console.log("📂 Tables:", tables);
+
+    // jalankan server
     app.listen(PORT, () => {
       console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
+
+      console.log("DB:", process.env.MYSQLDATABASE);
+      console.log("HOST:", process.env.MYSQLHOST);
+      console.log("USER:", process.env.MYSQLUSER);
+      console.log("PORT:", process.env.MYSQLPORT);
     });
   } catch (err) {
-    console.error("❌ Error starting server:", err);
+    console.error("❌ Database connection error:", err);
   }
 }
 
-// Panggil fungsi untuk menjalankan server
 startServer();
