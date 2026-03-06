@@ -1,17 +1,15 @@
 // config/sequelize.js
 const { Sequelize } = require("sequelize");
 
-// Ambil environment variable (pastikan sudah di-set di Railway)
 const sequelize = new Sequelize(
-  process.env.MYSQLDATABASE,
-  process.env.MYSQLUSER,
-  process.env.MYSQLPASSWORD,
+  process.env.MYSQLDATABASE || "database_name",
+  process.env.MYSQLUSER || "root",
+  process.env.MYSQLPASSWORD || "password",
   {
-    host: process.env.MYSQLHOST,
-    port: process.env.MYSQLPORT,
+    host: process.env.MYSQLHOST || "localhost",
+    port: process.env.MYSQLPORT || 3306,
     dialect: "mysql",
-    logging: true, // Aktifkan logging untuk debug, ganti dengan false untuk produksi
-    // logging: false, // matikan log query, atau ganti dengan console.log untuk debug
+    logging: false, // matikan log query, atau ganti dengan console.log untuk debug
     pool: {
       max: 5,
       min: 0,
