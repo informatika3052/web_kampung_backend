@@ -2,50 +2,37 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
 const Announcements = sequelize.define(
-  "Announcements",
+  "Announcements", // ini nama model (bisa kapital)
   {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-
-    // Judul
     title: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-
-    // Deskripsi tambahan (untuk kegiatan dll)
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-
-    // Tanggal
     date: {
       type: DataTypes.DATE,
       allowNull: false,
     },
-
-    // Lokasi (optional kalau bukan kegiatan)
     location: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-
-    // Lampiran file
     attachment: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-
-    // Kategori
     category: {
       type: DataTypes.ENUM("umum", "keamanan", "kegiatan", "iuran"),
       defaultValue: "umum",
     },
-
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -56,8 +43,17 @@ const Announcements = sequelize.define(
     },
   },
   {
-    tableName: "Announcements",
+    // ⚠️ YANG DIPERBAIKI: tableName harus huruf kecil semua
+    tableName: "announcements", // <- ubah jadi huruf kecil
+
     timestamps: true,
+
+    // ⚠️ TAMBAHKAN INI untuk mapping kolom yang benar:
+    underscored: true, // karena di database pakai created_at, updated_at
+
+    // Kalau perlu, bisa mapping eksplisit:
+    createdAt: "created_at",
+    updatedAt: "updated_at",
   },
 );
 
