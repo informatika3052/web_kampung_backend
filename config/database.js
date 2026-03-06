@@ -21,16 +21,21 @@ const sequelize = new Sequelize(
   },
 );
 
-// Uji koneksi
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log("✅ Sequelize connected to MySQL");
-    console.log("DB:", process.env.MYSQLDATABASE);
-    console.log("HOST:", process.env.MYSQLHOST);
-    console.log("USER:", process.env.MYSQLUSER);
-    console.log("PORT:", process.env.MYSQLPORT);
-  })
-  .catch((err) => console.error("❌ Sequelize connection error:", err));
+// cek koneksi database
+const connectWithRetry = () => {
+  sequelize
+    .authenticate()
+    .then(() => console.log("Database connected"))
+    .catch((err) => {
+      console.error("Database connection failed, retrying in 5s...", err);
+
+      console.log("DB:", process.env.MYSQLDATABASE);
+      console.log("HOST:", process.env.MYSQLHOST);
+      console.log("USER:", process.env.MYSQLUSER);
+      console.log("PORT:", process.env.MYSQLPORT);
+      setTimeout(connectWithRetry, 5000);
+    });
+};
+connectWithRetry();
 
 module.exports = sequelize;
