@@ -2,21 +2,17 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const sequelize = require("./config/database");
-
-// Import models
 const db = require("./models");
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
 
-// Logging semua request
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
@@ -69,6 +65,21 @@ app.use((err, req, res, next) => {
     error: err.message,
   });
 });
+
+const net = require("net");
+const testConnection = (host, port) => {
+  const socket = net.createConnection(port, host, () => {
+    console.log(`✅ TCP connection to ${host}:${port} successful`);
+    socket.end();
+  });
+  socket.on("error", (err) => {
+    console.error(`❌ TCP connection to ${host}:${port} failed:`, err.message);
+  });
+};
+// Panggil setelah mendapatkan host dan port
+if (process.env.MYSQLHOST && process.env.MYSQLPORT) {
+  testConnection(process.env.MYSQLHOST, parseInt(process.env.MYSQLPORT));
+}
 
 // 404 handler
 app.use((req, res) => {

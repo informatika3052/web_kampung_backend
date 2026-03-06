@@ -2,44 +2,35 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Pastikan folder uploads ada
 const uploadDir = "uploads";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Buat subfolder untuk announcements
 const announcementsDir = path.join(uploadDir, "announcements");
 if (!fs.existsSync(announcementsDir)) {
   fs.mkdirSync(announcementsDir);
 }
 
-// Konfigurasi storage untuk berbagai jenis upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Tentukan folder berdasarkan jenis file atau tujuan
     if (file.fieldname === "attachment") {
-      // Untuk upload gambar pengumuman
       cb(null, announcementsDir);
     } else if (file.fieldname === "file" || file.fieldname === "importFile") {
-      // Untuk upload file Excel (import)
       cb(null, uploadDir);
     } else {
-      // Default
       cb(null, uploadDir);
     }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    // Simpan dengan nama field + timestamp agar lebih terorganisir
     const prefix = file.fieldname === "attachment" ? "announcement" : "file";
     cb(null, prefix + "-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
-// Filter file berdasarkan fieldname
+// Filter
 const fileFilter = (req, file, cb) => {
-  // Untuk field "attachment" (gambar pengumuman)
   if (file.fieldname === "attachment") {
     const allowedImages = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
     const ext = path.extname(file.originalname).toLowerCase();

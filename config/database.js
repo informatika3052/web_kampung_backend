@@ -2,11 +2,11 @@
 const { Sequelize } = require("sequelize");
 
 const sequelize = new Sequelize(
-  process.env.MYSQLDATABASE || "database_name",
+  process.env.MYSQLDATABASE || "railway",
   process.env.MYSQLUSER || "root",
   process.env.MYSQLPASSWORD || "password",
   {
-    host: process.env.MYSQLHOST || "localhost",
+    host: process.env.MYSQLHOST || "mysql.railway.internal",
     port: process.env.MYSQLPORT || 3306,
     dialect: "mysql",
     logging: false, // matikan log query, atau ganti dengan console.log untuk debug
