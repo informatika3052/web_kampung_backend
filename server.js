@@ -17,7 +17,7 @@ app.use("/uploads", express.static("uploads"));
 //   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
 //   next();
 // });
-const allowedOrigins = ["https://web-kampung.vercel.app"];
+const allowedOrigins = ["https://web-kampung-c1ii02x8i-informatika3052s-projects.vercel.app/"];
 
 app.use(
   cors({
