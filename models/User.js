@@ -33,7 +33,8 @@ const User = sequelize.define(
   },
   {
     tableName: "users",
-    timestamps: true, // otomatis menambah createdAt, updatedAt
+    timestamps: true,
+    underscored: true,
   },
 );
 
