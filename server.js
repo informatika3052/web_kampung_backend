@@ -1,38 +1,41 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const sequelize = require("./config/database");
-const db = require("./models");
+/**
+ * ✅ CORS harus didefinisikan dengan origin tanpa trailing slash.
+ *    Jangan gabung 2 URL jadi 1 string.
+ */
+const allowedOrigins = [
+  "https://web-kampung.vercel.app",
+  "https://web-kampung-c1ii02x8i-informatika3052s-projects.vercel.app",
+  "http://localhost:3000",
+];
 
-dotenv.config();
+const corsOptions = {
+  origin(origin, callback) {
+    // allow requests with no origin (curl, server-to-server, dll)
+    if (!origin) return callback(null, true);
 
-const app = express();
+    // allow exact matches
+    if (allowedOrigins.includes(origin)) return callback(null, true);
 
-// app.use(cors());
+    // (Opsional tapi berguna) izinkan preview vercel untuk project "web-kampung"
+    // contoh: https://web-kampung-xxxxx.vercel.app
+    if (/^https:\/\/web-kampung(-.+)?\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  // credentials: true, // aktifkan kalau kamu pakai cookie/session lintas domain
+};
+
+// ✅ pasang CORS sebelum routes
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
-
-// app.use((req, res, next) => {
-//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-//   next();
-// });
-const allowedOrigins = ["https://web-kampung-c1ii02x8i-informatika3052s-projects.vercel.app/"];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg =
-          "The CORS policy for this site does not allow access from the specified Origin.";
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
-  }),
-);
 
 // Import routes
 const authRoutes = require("./routes/authRoutes");
@@ -48,7 +51,11 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/import", importRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
 app.use("/api/announcements", announcementRoutes);
+
+// ✅ kompatibilitas kalau frontend kamu masih manggil tanpa /api
+app.use("/announcements", announcementRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -58,44 +65,18 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/test-pdf", (req, res) => {
-  try {
-    const PDFDocument = require("pdfkit");
-    const doc = new PDFDocument();
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=test.pdf");
-    doc.pipe(res);
-    doc.fontSize(25).text("Hello World! Ini test PDF", 100, 100);
-    doc.end();
-  } catch (err) {
-    console.error("Test PDF error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Error handler
+// Error handler (opsional: bedakan error CORS)
 app.use((err, req, res, next) => {
   console.error("❌ Error:", err);
-  res.status(500).json({
-    message: "Terjadi kesalahan internal server",
+
+  const isCors = String(err.message || "")
+    .toLowerCase()
+    .includes("cors");
+  res.status(isCors ? 403 : 500).json({
+    message: isCors ? "CORS blocked" : "Terjadi kesalahan internal server",
     error: err.message,
   });
 });
-
-const net = require("net");
-const testConnection = (host, port) => {
-  const socket = net.createConnection(port, host, () => {
-    console.log(`✅ TCP connection to ${host}:${port} successful`);
-    socket.end();
-  });
-  socket.on("error", (err) => {
-    console.error(`❌ TCP connection to ${host}:${port} failed:`, err.message);
-  });
-};
-// Panggil setelah mendapatkan host dan port
-if (process.env.MYSQLHOST && process.env.MYSQLPORT) {
-  testConnection(process.env.MYSQLHOST, parseInt(process.env.MYSQLPORT));
-}
 
 // 404 handler
 app.use((req, res) => {
@@ -109,17 +90,8 @@ async function startServer() {
     await sequelize.authenticate();
     console.log("✅ Database connected");
 
-    const [tables] = await sequelize.query("SHOW TABLES");
-    console.log("📂 Tables:", tables);
-
-    // jalankan server
     app.listen(PORT, () => {
       console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
-
-      console.log("DB:", process.env.MYSQLDATABASE);
-      console.log("HOST:", process.env.MYSQLHOST);
-      console.log("USER:", process.env.MYSQLUSER);
-      console.log("PORT:", process.env.MYSQLPORT);
     });
   } catch (err) {
     console.error("❌ Database connection error:", err);
