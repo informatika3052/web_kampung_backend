@@ -1,3 +1,12 @@
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const sequelize = require("./config/database");
+
+dotenv.config();
+
+const app = express();
+
 /**
  * ✅ CORS harus didefinisikan dengan origin tanpa trailing slash.
  *    Jangan gabung 2 URL jadi 1 string.
